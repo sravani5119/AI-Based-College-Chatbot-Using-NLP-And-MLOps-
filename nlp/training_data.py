@@ -144,6 +144,10 @@ TRAINING_DATA = {
         "placement companies",
         "year wise placements",
         "placement officer"
+        "training and placement coordinators"
+        "placement contact details"
+        "placement contacts"
+        "student coordinators for placements"
     ],
 
     "general_info": [

@@ -22,6 +22,10 @@ class Retriever:
         # SAFETY: if entities is None, convert to empty dict
         if not entities:
             entities = {}
+        
+         # --- Override for placement contact queries ---
+        if "placement" in query and "contact" in query:
+            intent = "placements"
 
         if intent == "research" and "branch" in entities:
             print("OVERRIDE ACTIVATED → switching to departments")
@@ -86,8 +90,9 @@ class Retriever:
                 return data.get("epayments", "Payment information not available.")
 
             # DEFAULT → PROCEDURE
-            return data.get("procedure", "Admission procedure not available.")
-
+            return self.format_admission_procedure(data.get("procedure"))
+        
+        
         # ----------------------------------------
         # DEPARTMENTS
         # ----------------------------------------
@@ -118,16 +123,16 @@ class Retriever:
             dept_data = departments.get(selected_dept, {})
 
             if "hod" in query:
-                return self.clean_response(dept_data.get("hod-message"))
+                return self.trim_response(dept_data.get("hod-message"))
 
             if "vision" in query or "mission" in query:
-                return self.clean_response(dept_data.get("vision-mission"))
+                return self.trim_response(dept_data.get("vision-mission"))
 
             if "faculty" in query or "staff" in query:
                 return self.clean_response(dept_data.get("teaching-staff"))
 
             if "achievement" in query:
-                return self.clean_response(dept_data.get("achivements"))
+                return self.trim_response(dept_data.get("achivements"))
 
             # FIX: If branch mentioned with research → treat as department
             if intent == "research" and entities.get("branch"):
@@ -135,9 +140,9 @@ class Retriever:
                 print("FINAL INTENT:", intent)
 
             if "research" in query:
-                return self.clean_response(dept_data.get("research-and-consultancy"))
+                return self.trim_response(dept_data.get("research-and-consultancy"))
 
-            return self.clean_response(dept_data.get("about"))
+            return self.trim_response(dept_data.get("about"))
 
         # ----------------------------------------
         # PLACEMENTS
@@ -150,23 +155,26 @@ class Retriever:
                 return "Placements information not available."
 
             if "recruit" in query:
-                return placements_data.get("recruiters", [])
+                recruiters = placements_data.get("recruiters", [])
+
+                if not recruiters:
+                    return "Recruiters information not available."
+
+                return "🏢 Major Recruiters:\n\n" + ", ".join(recruiters)
 
             elif "year" in query:
-                return placements_data.get("year_wise", {})
+                return self.format_yearwise_placements(
+                    placements_data.get("year_wise")
+                )
 
             elif "contact" in query:
-                return placements_data.get(
-                    "contacts",
-                    "Placement contact information not available."
+                return self.format_placement_contacts(
+                    placements_data.get("contacts")
                 )
 
             else:
-                return self.clean_response(
-                    placements_data.get(
-                        "about",
-                        "Placements information not available."
-                    )
+                return self.trim_response(
+                    placements_data.get("about")
                 )
 
         # ----------------------------------------
@@ -180,16 +188,16 @@ class Retriever:
                 return "R&D information not available."
 
             if "newgen" in query or "iedc" in query:
-                return self.clean_response(rnd_data.get("newgen_iedc"))
+                return self.trim_response(rnd_data.get("newgen_iedc"))
 
             elif "excellence" in query:
-                return self.clean_response(rnd_data.get("centre_of_excellence"))
+                return self.trim_response(rnd_data.get("centre_of_excellence"))
 
             elif "idea lab" in query or "aicte" in query:
-                return self.clean_response(rnd_data.get("aicte_idea_lab"))
+                return self.trim_response(rnd_data.get("aicte_idea_lab"))
 
             else:
-                return self.clean_response(rnd_data.get("rd_cell"))
+                return self.trim_response(rnd_data.get("rd_cell"))
 
         # ----------------------------------------
         # STUDENT CLUBS
@@ -208,43 +216,43 @@ class Retriever:
 
             # 2️⃣ If asking specific club
             if "radio" in query_lower:
-                return self.clean_response(clubs_data.get("radio_club"))
+                return self.format_club_response(clubs_data.get("radio_club"))
 
             elif "coder" in query_lower:
-                return self.clean_response(clubs_data.get("coders_club"))
+                return self.format_club_response(clubs_data.get("coders_club"))
 
             elif "creator" in query_lower:
-                return self.clean_response(clubs_data.get("creators_club"))
+                return self.format_club_response(clubs_data.get("creators_club"))
 
             elif "cultural" in query_lower:
-                return self.clean_response(clubs_data.get("cultural_club"))
+                return self.format_club_response(clubs_data.get("cultural_club"))
 
             elif "eco" in query_lower:
-                return self.clean_response(clubs_data.get("eco_club"))
+                return self.format_club_response(clubs_data.get("eco_club"))
 
             elif "fitness" in query_lower:
-                return self.clean_response(clubs_data.get("fitness_club"))
+                return self.format_club_response(clubs_data.get("fitness_club"))
 
             elif "gamer" in query_lower:
-                return self.clean_response(clubs_data.get("gamers_club"))
+                return self.format_club_response(clubs_data.get("gamers_club"))
 
             elif "handler" in query_lower or "robo" in query_lower:
-                return self.clean_response(clubs_data.get("handlers_club"))
+                return self.format_club_response(clubs_data.get("handlers_club"))
 
             elif "literary" in query_lower or "fine arts" in query_lower:
-                return self.clean_response(clubs_data.get("literary_club"))
+                return self.format_club_response(clubs_data.get("literary_club"))
 
             elif "multimedia" in query_lower or "trinetra" in query_lower:
-                return self.clean_response(clubs_data.get("multimedia_club"))
+                return self.format_club_response(clubs_data.get("multimedia_club"))
 
             elif "nss" in query_lower:
-                return self.clean_response(clubs_data.get("nss_club"))
+                return self.format_club_response(clubs_data.get("nss_club"))
 
             elif "sport" in query_lower:
-                return self.clean_response(clubs_data.get("sports_club"))
+                return self.format_club_response(clubs_data.get("sports_club"))
 
             elif "women" in query_lower or "sheinspires" in query_lower:
-                return self.clean_response(clubs_data.get("womens_club"))
+                return self.format_club_response(clubs_data.get("womens_club"))
 
             return "Please specify which club you want information about."
 
@@ -290,3 +298,260 @@ class Retriever:
                 cleaned_lines.append(line)
 
         return "\n".join(cleaned_lines)
+
+    
+
+    def trim_response(self, text, max_lines=3):
+
+        if not text:
+            return "Information not available."
+
+        # First clean junk
+        text = self.clean_response(text)
+
+        lines = text.split("\n")
+        meaningful_lines = []
+
+        for line in lines:
+            line = line.strip()
+
+            # Ignore short headers like "About Department"
+            if len(line) < 40:
+                continue
+
+            # Ignore navigation-like junk
+            lower_line = line.lower()
+            if (
+                "academicsadmissions" in lower_line or
+                "privacy policy" in lower_line or
+                "nptel" in lower_line or
+                "naac" in lower_line or
+                "nirf" in lower_line or
+                "today" in lower_line or
+                "yesterday" in lower_line or
+                "download brochure" in lower_line or
+                "full name" in lower_line or
+                "submit" in lower_line or
+                "gallery" in lower_line or
+                "enquiry" in lower_line
+            ):
+                continue
+
+            meaningful_lines.append(line)
+
+        if not meaningful_lines:
+            return text
+
+        return "\n\n".join(meaningful_lines[:max_lines])
+    
+
+
+    def format_admission_procedure(self, text):
+
+        if not text:
+            return "Admission procedure not available."
+
+        # Clean navigation junk first
+        text = self.clean_response(text)
+
+        # Split based on numbering "2."
+        parts = text.split("2.")
+
+        # If both parts exist (Regular + Lateral Entry)
+        if len(parts) >= 2:
+
+            regular = parts[0].strip()
+            lateral = "2." + parts[1].strip()
+
+            return (
+                "🔹 B.Tech Admission (4-Year Program):\n\n"
+                f"{regular}\n\n"
+                "🔹 Lateral Entry (Diploma Holders):\n\n"
+                f"{lateral}"
+            )
+
+        # Fallback
+        return text
+
+
+
+    def format_yearwise_placements(self, year_data):
+
+        if not year_data:
+            return "Year-wise placement data not available."
+
+        table = year_data.get("table_1", {})
+        rows = table.get("rows", [])
+
+        if not rows:
+            return "Year-wise placement data not available."
+
+        response = "📊 Year-wise Placement Offers:\n\n"
+
+        for row in rows:
+            year = row[1]
+            offers = row[2]
+            response += f"• {year} → {offers}\n"
+
+        return response
+    
+
+
+    def format_placement_contacts(self, text):
+
+        if not text:
+            return "Placement contact information not available."
+
+        text = self.clean_response(text)
+        lines = text.split("\n")
+
+        response = "📞 Training & Placement Contacts\n\n"
+
+        i = 0
+        total = len(lines)
+
+        # -------------------------
+        # 1️⃣ Core Officers
+        # -------------------------
+        response += "🔹 Core Officers:\n\n"
+
+        while i < total:
+
+            if (
+                "Head - Corporate Relations" in lines[i]
+                or "Training & Placement Officer" in lines[i]
+            ):
+
+                try:
+                    name = lines[i - 2]
+                    department = lines[i - 1]
+                    designation = lines[i]
+                    mobile = lines[i + 1]
+                    email = lines[i + 2]
+
+                    response += (
+                        f"Name: {name}\n"
+                        f"Designation: {designation}\n"
+                        f"Mobile: {mobile}\n"
+                        f"Email: {email}\n\n"
+                    )
+
+                except IndexError:
+                    pass
+
+            i += 1
+
+
+        # -------------------------
+        # 2️⃣ Placement Team Members
+        # -------------------------
+        response += "🔹 Placement Team Members:\n\n"
+
+        i = 0
+        while i < total:
+
+            if "Member" in lines[i] or "Placement Assistant" in lines[i]:
+
+                try:
+                    name = lines[i - 2]
+                    designation = lines[i]
+                    mobile = lines[i + 1]
+                    email = lines[i + 2]
+
+                    response += (
+                        f"Name: {name}\n"
+                        f"Role: {designation}\n"
+                        f"Mobile: {mobile}\n"
+                        f"Email: {email}\n\n"
+                    )
+
+                except IndexError:
+                    pass
+
+            i += 1
+
+
+        # -------------------------
+        # 3️⃣ Student Coordinators
+        # -------------------------
+        response += "🔹 Student Coordinators:\n\n"
+
+        i = 0
+        while i < total:
+
+            # Detect student rows by Roll Number pattern
+            if lines[i].startswith("23N81A"):
+
+                try:
+                    roll = lines[i]
+                    name = lines[i + 1]
+                    mobile = lines[i + 2]
+                    branch = lines[i + 3]
+                    email = lines[i + 4]
+
+                    response += (
+                        f"Name: {name} ({branch})\n"
+                        f"Mobile: {mobile}\n"
+                        f"Email: {email}\n\n"
+                    )
+
+                except IndexError:
+                    pass
+
+            i += 1
+
+        return response
+    
+
+
+
+    def format_club_response(self, text):
+
+        if not text:
+            return "Information not available."
+
+        text = self.clean_response(text)
+        lines = text.split("\n")
+
+        cleaned = []
+
+        junk_keywords = [
+            "Student Clubs",
+            "Accredited by",
+            "+91",
+            "NCC",
+            "AICTE Idea Lab",
+            "Home -",
+            "Download Brochure",
+            "Full Name",
+            "Submit",
+            "Enquiry",
+            "Alumni"
+        ]
+
+        for line in lines:
+            line = line.strip()
+
+            if not line:
+                continue
+
+            # Remove junk header lines
+            if any(junk in line for junk in junk_keywords):
+                continue
+
+            # Remove extremely short meaningless lines
+            if len(line) < 3:
+                continue
+
+            cleaned.append(line)
+
+        # Remove duplicate consecutive lines
+        final_output = []
+        prev = ""
+        for line in cleaned:
+            if line != prev:
+                final_output.append(line)
+            prev = line
+
+        # Limit output to first 60 meaningful lines
+        return "\n".join(final_output[:60])
