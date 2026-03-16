@@ -3,7 +3,8 @@ from knowledge_base.loader import (
     load_knowledge_base,
     load_placements,
     load_rnd,
-    load_clubs
+    load_clubs,
+    load_academics
 )
 
 
@@ -16,6 +17,7 @@ class Retriever:
 
         if user_input:
             query = user_input.lower()
+        
         else:
             query = ""
 
@@ -47,6 +49,16 @@ class Retriever:
 
             phone_text = ", ".join(phones)
             email_text = ", ".join(emails)
+
+            # Principal name request
+            if "principal" in query and ("who" in query or "name" in query):
+
+                principal = self.kb.get("principal")
+
+                if principal:
+                    return f"Principal: {principal}"
+
+                return "Principal information not available."
 
             return f"Phone: {phone_text} | Email: {email_text} | Address: {address}"
 
@@ -122,6 +134,24 @@ class Retriever:
 
             dept_data = departments.get(selected_dept, {})
 
+            # HOD NAME REQUEST
+            if "hod" in query and ("who" in query or "name" in query):
+
+                hod_message = dept_data.get("hod-message", "")
+
+                lines = hod_message.split("\n")
+
+                for line in lines:
+                    line = line.strip()
+
+                    # detect name line
+                    if line.startswith("Dr.") or line.startswith("Mr.") or line.startswith("Mrs.") or line.startswith("Prof"):
+                        return f"HOD: {line}"
+
+                return "HOD information not available."
+
+
+            # HOD MESSAGE REQUEST
             if "hod" in query:
                 return self.trim_response(dept_data.get("hod-message"))
 
@@ -255,6 +285,90 @@ class Retriever:
                 return self.format_club_response(clubs_data.get("womens_club"))
 
             return "Please specify which club you want information about."
+        
+
+        # ----------------------------------------
+        # ACADEMICS
+        # ----------------------------------------
+        if intent == "academics":
+
+            academics_data = load_academics()
+
+            if not academics_data:
+                return "Academic information not available."
+
+            # Academic Council
+            if "council" in query:
+
+                council_text = academics_data.get("academic_council")
+
+                if not council_text:
+                    return "Academic council information not available."
+
+                return self.clean_response(council_text)
+
+            # Academic Calendar
+            if "calendar" in query:
+
+                calendars = academics_data.get("academic_calendars", [])
+
+                if not calendars:
+                    return "Academic calendar information not available."
+
+                study_year = entities.get("study_year")
+                requested_year = entities.get("year")
+
+                # -----------------------------------
+                # Step 1: Determine academic year
+                # -----------------------------------
+                if requested_year:
+                    target_calendars = [
+                        cal for cal in calendars
+                        if requested_year in cal.get("academic_year", "")
+                    ]
+                else:
+                    latest_year = calendars[0]["academic_year"]
+                    target_calendars = [
+                        cal for cal in calendars
+                        if cal.get("academic_year") == latest_year
+                    ]
+
+                if not target_calendars:
+                    return "Requested academic year calendar not available."
+
+                # -----------------------------------
+                # Step 2: Match study year
+                # -----------------------------------
+                if study_year:
+
+                    year_map = {
+                        1: "i year",
+                        2: "ii year",
+                        3: "iii year",
+                        4: "iv year"
+                    }
+
+                    year_text = year_map.get(study_year)
+
+                    for cal in target_calendars:
+
+                        title = cal.get("title", "").lower()
+
+                        if year_text in title:
+                            return (
+                                f"📅 {cal['title']}\n\n"
+                                f"Academic Year: {cal['academic_year']}\n\n"
+                                f"{cal['link']}"
+                            )
+
+                # fallback
+                cal = target_calendars[0]
+
+                return (
+                    f"📅 {cal['title']}\n\n"
+                    f"Academic Year: {cal['academic_year']}\n\n"
+                    f"{cal['link']}"
+                )      
 
         # ----------------------------------------
         # DEFAULT

@@ -44,3 +44,19 @@ def load_clubs():
 
     with open(file_path, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+
+def load_academics():
+    import json
+    import os
+
+    file_path = os.path.join("data", "structured", "academics.json")
+
+    if not os.path.exists(file_path):
+        return {}
+
+    with open(file_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    return data

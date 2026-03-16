@@ -1,4 +1,6 @@
 {
+  "principal": "Dr. V. S. Giridhar Akula",
+
   "contact": {
     "phone": [
       "+91 9966 631 091",
@@ -10,6 +12,7 @@
       "admissions@sphoorthyengg.ac.in"
     ],
     "address": "Sphoorthy Engineering College Nadargul Village, Saroornagar Mandal, Hyderabad, Telangana- 501510, India"
+
   },
   "admissions": {
     "procedure": "1. Admission to 4-year B.Tech. Degree Programme The admission into undergraduate engineering programme (B.Tech.) for all branches of study is made as per the relevant rules of Government and norms/guidelines of the Telangana State Council of Higher Education: 70% of intake i.e., “Category-A Seats” will be filled by the Convener, TSEAMCET based on the merit rank obtained in state level entrance examination-TSEAMCET. 30% of intake i.e., “Category-B Seats” will be filled by the college management as per the relevant rules of Government and norms/guidelines of the Telangana State Council of Higher Education from time to time. Spot Admission for B.Tech. 4-year Course:Any seats left vacant in the convener quota, will be filled by the college based on the guidelines given by Convener TSEAMCET. The College issues an advertisement after necessary approval from Convener and the list of admitted candidates will be forwarded to Convener for ratification/approval. 2.\tAdmission to B.Tech. Degree (Lateral Entry) Programme for Diploma Holders Seats up-to 10% of sanctioned intake of each programme of undergraduate course shall be filled by the Convener, TSECET as lateral entry admission into second year of B.Tech. programme based on the merit rank obtained in state level entrance examination-TSECET.",
@@ -28,7 +31,7 @@
     "CSE - Artificial Intelligence and Machine Learning (CSM)"
   ]
 
-},
+  },
     "eligibility": "B.Tech. Eligibility Requirements 1. For admission under Category-A A candidate for admission to the first year of 4-year B.Tech. degree programme under Category-A: must have passed the intermediate examination of Board of Intermediate Education, Govt. of Telangana with Mathematics, Physics and Chemistry as optional subjects or any other examination recognized by the JNTUH as equivalent thereto. shall have to qualify in the EAMCET examination conducted by Govt. of Telangana. Candidates should belong to the state of Telangana / Andhra Pradesh. The candidates should satisfy Local/ Non-Local status requirements as laid down in the Telangana / Andhra Pradesh. Educational Institutions (Regulation of Admission) order, 1974 as subsequently amended. 2. For admission under Category-B A candidate for admission to the first year of 4-year B.Tech. degree programme under Category-B must have secured 60% of marks in the intermediate examination of Board of Intermediate Education, Govt. of Telangana with Mathematics, Physics and Chemistry as optional subjects or any other examination recognized by the JNTUH as equivalent thereto. 3. For admission to B.Tech. Degree (Lateral Entry) Programme A candidate for admission to the second year of 4-year B.Tech. degree programme: must have completed the Diploma/Polytechnic. shall have to qualify in the TSECET examination conducted by Govt. of Telangana."
   },
   "departments": {

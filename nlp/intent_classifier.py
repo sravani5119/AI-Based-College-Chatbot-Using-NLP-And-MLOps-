@@ -7,6 +7,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 from nlp.training_data import TRAINING_DATA
 from nlp.preprocessing import clean_text
+from nlp.spell_corrector import correct_spelling
+
 
 
 class IntentClassifier:
@@ -52,7 +54,8 @@ class IntentClassifier:
         self.vectorizer = joblib.load("models/vectorizer.pkl")
 
     def predict(self, text: str):
-        cleaned = clean_text(text)
+        corrected = correct_spelling(text)
+        cleaned = clean_text(corrected)
         vec = self.vectorizer.transform([cleaned])
         prediction = self.model.predict(vec)[0]
         confidence = max(self.model.predict_proba(vec)[0])
