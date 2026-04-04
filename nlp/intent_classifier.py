@@ -8,14 +8,21 @@ from sklearn.metrics import classification_report
 from nlp.training_data import TRAINING_DATA
 from nlp.preprocessing import clean_text
 from nlp.spell_corrector import correct_spelling
+from sklearn.pipeline import FeatureUnion
 
 
 
 class IntentClassifier:
 
     def __init__(self):
-        self.vectorizer = TfidfVectorizer(ngram_range=(1,2))
-        self.model = LogisticRegression(max_iter=1000)
+        self.vectorizer = FeatureUnion([
+            ("word", TfidfVectorizer(ngram_range=(1,3), max_features=5000)),
+            ("char", TfidfVectorizer(analyzer='char_wb', ngram_range=(3,5)))
+        ])
+        self.model = LogisticRegression(
+            max_iter=2000,
+            class_weight="balanced"
+        )
 
     def prepare_data(self):
         texts = []
@@ -58,5 +65,6 @@ class IntentClassifier:
         cleaned = clean_text(corrected)
         vec = self.vectorizer.transform([cleaned])
         prediction = self.model.predict(vec)[0]
-        confidence = max(self.model.predict_proba(vec)[0])
+        probs = self.model.predict_proba(vec)[0]
+        confidence = float(max(probs))
         return prediction, confidence

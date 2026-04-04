@@ -2,7 +2,6 @@ from nlp.intent_classifier import IntentClassifier
 from nlp.entity_extractor import extract_entities
 from pipeline.retriever import Retriever
 from pipeline.responder import Responder
-from nlp.spell_corrector import correct_spelling
 
 
 class ChatbotEngine:
@@ -18,8 +17,49 @@ class ChatbotEngine:
 
     def get_response(self, user_input):
 
-        corrected_input = correct_spelling(user_input)
-        query = corrected_input.lower()
+        query = user_input.lower()
+
+        # -------------------------
+        # Query Normalization Layer
+        # -------------------------
+        synonyms = {
+            "academic": "academics",
+            "dept": "department",
+            "depart": "department",
+            "placements": "placement",
+            "clubs": "club",
+            "faculty": "staff",
+            "eligibity": "eligibility",
+            "eligible": "eligibility",
+        }
+
+        # -------------------------
+        # Short Query Handling
+        # -------------------------
+        words = query.split()
+
+        if len(words) <= 2:
+            if any(dept in query for dept in ["cse", "aiml", "cyber", "data science", "freshman"]):
+                intent = "departments"
+                confidence = 1.0
+
+            elif "placement" in query:
+                intent = "placements"
+                confidence = 1.0
+
+            elif "club" in query:
+                intent = "student_clubs"
+                confidence = 1.0
+
+            elif "calendar" in query or "academics" in query:
+                intent = "academics"
+                confidence = 1.0
+
+            else:
+                intent = None
+
+        for key, value in synonyms.items():
+            query = query.replace(key, value)
 
         # -------------------------
         # About SPHN / College
@@ -44,12 +84,28 @@ class ChatbotEngine:
             }
 
         # Greeting override
-        if query in ["hi", "hello", "hey"]:
+        if query in ["hi", "hello", "hey", "good morning", "good evening"]:
             return {
                 "intent": "greeting",
                 "entities": {},
                 "confidence": 1.0,
                 "response": "Hello! 👋 How can I help you today?\n\nYou can ask about:\n• Admissions\n• Placements\n• Academic Calendar\n• Departments\n• Student Clubs"
+            }
+        
+        if "help" in query:
+            return {
+                "intent": "help",
+                "entities": {},
+                "confidence": 1.0,
+                "response": (
+                    "You can ask me about:\n\n"
+                    "• Admissions\n"
+                    "• Placements\n"
+                    "• Departments (CSE, AIML, etc.)\n"
+                    "• Academic Calendar\n"
+                    "• Student Clubs\n"
+                    "• Contact Details"
+                )
             }
         
         # -------------------------
@@ -64,24 +120,80 @@ class ChatbotEngine:
             }
 
 
-        # quick overrides for name queries
-        if "principal" in query:
-            intent = "contact"
-            confidence = 1.0
+        
+        # -------------------------
+        # Keyword Intent Overrides (HIGH PRIORITY)
+        # -------------------------
+        # -------------------------
+        # Keyword Intent Overrides (FIX ORDER ONLY)
+        # -------------------------
 
-        elif "hod" in query:
+        # 🔥 departments FIRST (very important)
+        if "hod" in query or "department" in query or "achievement" in query:
             intent = "departments"
             confidence = 1.0
 
-        else:
-            intent, confidence = self.intent_classifier.predict(corrected_input)
+        elif "placement" in query:
+            intent = "placements"
+            confidence = 1.0
 
-        entities = extract_entities(corrected_input)
+        elif "club" in query:
+            intent = "student_clubs"
+            confidence = 1.0
 
-        result = self.retriever.retrieve(intent, entities, corrected_input)
+        elif "calendar" in query or "academics" in query:
+            intent = "academics"
+            confidence = 1.0
+
+        elif "contact" in query or "principal" in query:
+            intent = "contact"
+            confidence = 1.0
+
+        elif "eligibility" in query or "eligible" in query or "eligib" in query:
+            intent = "admissions"
+            confidence = 1.0
+
+        elif "admission" in query:
+            intent = "admissions"
+            confidence = 1.0
+
+        elif "research" in query or "r&d" in query:
+            intent = "research"
+            confidence = 1.0
+            
+        if intent is None:
+            intent, confidence = self.intent_classifier.predict(user_input)
+
+        # -------------------------
+        # Low Confidence Fallback
+        # -------------------------
+        if confidence < 0.4:
+            if "cse" in query or "aiml" in query:
+                intent = "departments"
+                confidence = 0.6
+
+            elif "placement" in query:
+                intent = "placements"
+                confidence = 0.6
+
+            elif "club" in query:
+                intent = "student_clubs"
+                confidence = 0.6
+
+        entities = extract_entities(user_input)
+
+        try:
+            result = self.retriever.retrieve(intent, entities, user_input)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()   # 🔥 THIS WILL SHOW FULL ERROR
+            result = "Something went wrong. Please try again."
 
         final_response = self.responder.format_response(result, confidence)
-
+        print("User Query:", query)
+        print("Intent:", intent)
+        print("Entities:", entities)
+        print("Confidence:", confidence)
         return {
             "intent": intent,
             "entities": entities,

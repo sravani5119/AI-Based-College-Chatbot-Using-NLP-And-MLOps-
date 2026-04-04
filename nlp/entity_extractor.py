@@ -2,24 +2,6 @@
 
 import re
 
-def extract_entities(text: str):
-    entities = {}
-
-    regulation = re.findall(r"r\d{2}", text.lower())
-    if regulation:
-        entities["regulation"] = regulation[0].upper()
-
-    year = re.findall(r"\b20\d{2}\b", text)
-    if year:
-        entities["year"] = year[0]
-
-    branches = ["cse", "ece", "eee", "mech", "civil"]
-    for branch in branches:
-        if branch in text.lower():
-            entities["branch"] = branch.upper()
-
-    return entities
-
 
 
 # nlp/entity_extractor.py
@@ -48,10 +30,85 @@ def extract_entities(text: str):
     # -------------------------
     # Branch
     # -------------------------
-    branches = ["cse", "ece", "eee", "mech", "civil"]
-    for branch in branches:
-        if branch in text_lower:
-            entities["branch"] = branch.upper()
+    branch_map = {
+        "cse": "CSE",
+
+        "aiml": "AIML",
+        "ai": "AIML",
+        "artificial intelligence": "AIML",
+
+        "cyber": "CYBER",
+        "cyber security": "CYBER",
+
+        "data science": "DS",
+        "ds": "DS",
+
+        "ece": "ECE",
+        "eee": "EEE",
+        "mech": "MECH",
+        "civil": "CIVIL",
+    }
+
+    for key, value in branch_map.items():
+        if key in text_lower:
+            entities["branch"] = value
+            break
+    
+    # -------------------------
+    # Role Detection
+    # -------------------------
+    role_map = {
+        "hod": "hod",
+        "head": "hod",
+        "faculty": "faculty",
+        "staff": "faculty",
+        "teaching": "faculty",
+        "vision": "vision",
+        "mission": "vision",
+        "research": "research",
+        "achievement": "achievement",
+    }
+
+    for key, value in role_map.items():
+        if key in text_lower:
+            entities["role"] = value
+            break
+
+    # -------------------------
+    # Query Type Detection
+    # -------------------------
+    if "placement" in text_lower or "recruit" in text_lower:
+        entities["query_type"] = "placements"
+
+    elif "club" in text_lower:
+        entities["query_type"] = "student_clubs"
+
+    elif "academic" in text_lower or "calendar" in text_lower:
+        entities["query_type"] = "academics"
+
+    elif "admission" in text_lower:
+        entities["query_type"] = "admissions"
+
+    elif "research" in text_lower or "r&d" in text_lower:
+        entities["query_type"] = "research"
+
+    elif "contact" in text_lower:
+        entities["query_type"] = "contact"
+
+    # -------------------------
+    # Keyword Detection
+    # -------------------------
+    if "calendar" in text_lower:
+        entities["keyword"] = "calendar"
+
+    elif "contact" in text_lower:
+        entities["keyword"] = "contact"
+
+    elif "recruit" in text_lower:
+        entities["keyword"] = "recruiters"
+
+    elif "course" in text_lower:
+        entities["keyword"] = "courses"
 
     # -------------------------
     # Study Year Detection

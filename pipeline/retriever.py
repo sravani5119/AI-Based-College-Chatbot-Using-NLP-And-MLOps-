@@ -15,11 +15,16 @@ class Retriever:
 
     def retrieve(self, intent, entities, user_input=None):
 
-        if user_input:
-            query = user_input.lower()
-        
-        else:
-            query = ""
+        query = user_input.lower().strip() if user_input else ""
+
+        # -------------------------
+        # Block conditions (FIXED)
+        # -------------------------
+        is_placement_query = "placement" in query or "recruit" in query
+        is_club_query = "club" in query
+        is_academic_query = "calendar" in query or "academic" in query
+        is_admission_query = "admission" in query
+        is_research_query = "research" in query or "r&d" in query
 
         # SAFETY: if entities is None, convert to empty dict
         if not entities:
@@ -29,12 +34,19 @@ class Retriever:
         if "placement" in query and "contact" in query:
             intent = "placements"
 
-        if intent == "research" and "branch" in entities:
-            print("OVERRIDE ACTIVATED → switching to departments")
+        if intent == "research" and entities.get("branch") and "research" in query:
             intent = "departments"
 
         print("FINAL INTENT:", intent)
+        # Principal name request
+        if "principal" in query and ("who" in query or "name" in query):
 
+            principal = self.kb.get("principal")
+
+            if principal:
+                return f"Principal: {principal}"
+
+            return "Principal information not available."
         # ----------------------------------------
         # CONTACT
         # ----------------------------------------
@@ -47,20 +59,17 @@ class Retriever:
             if not phones and not emails and not address:
                 return "Contact information not available."
 
-            phone_text = ", ".join(phones)
-            email_text = ", ".join(emails)
+        
 
-            # Principal name request
-            if "principal" in query and ("who" in query or "name" in query):
+            phone_lines = "\n".join(phones)
+            email_lines = "\n".join(emails)
 
-                principal = self.kb.get("principal")
-
-                if principal:
-                    return f"Principal: {principal}"
-
-                return "Principal information not available."
-
-            return f"Phone: {phone_text} | Email: {email_text} | Address: {address}"
+            return (
+                "📞 Contact Details\n\n"
+                f"📱 Phone:\n{phone_lines}\n\n"
+                f"📧 Email:\n{email_lines}\n\n"
+                f"📍 Address:\n{address}"
+)
 
         # ----------------------------------------
         # ADMISSIONS
@@ -75,104 +84,53 @@ class Retriever:
                 if not courses:
                     return "Courses information not available."
 
-                # If structured dictionary (new improved scraping)
+                # -------------------------
+                # FILTER BASED ON QUERY
+                # -------------------------
+
                 if isinstance(courses, dict):
+
                     response_lines = []
 
-                    for degree, branches in courses.items():
-                        response_lines.append(f"{degree}")
+                    # 🎯 B.TECH ONLY
+                    if "b.tech" in query or "btech" in query or "b tech" in query:
+                        branches = courses.get("B.Tech", [])
 
-                        if isinstance(branches, list):
+                        response_lines.append("🎓 B.Tech Courses:\n")
+
+                        for branch in branches:
+                            response_lines.append(f"• {branch}")
+
+                        return "\n".join(response_lines)
+
+                    # 🎯 M.TECH ONLY
+                    elif "m.tech" in query or "mtech" in query or "m tech" in query:
+                        branches = courses.get("M.Tech", [])
+
+                        response_lines.append("🎓 M.Tech Courses:\n")
+
+                        for branch in branches:
+                            response_lines.append(f"• {branch}")
+
+                        return "\n".join(response_lines)
+
+                    # 🎯 BOTH
+                    else:
+                        for degree, branches in courses.items():
+                            response_lines.append(f"🎓 {degree}:\n")
+
                             for branch in branches:
-                                response_lines.append(f" - {branch}")
+                                response_lines.append(f"• {branch}")
 
-                        response_lines.append("")
+                                response_lines.append("")
 
-                    return "\n".join(response_lines).strip()
+                        return "\n".join(response_lines).strip()
 
-                # If still old string format
                 return courses
 
-            # ELIGIBILITY
-            if "eligibility" in query:
-                return data.get("eligibility", "Eligibility information not available.")
-
-            # FEE / PAYMENTS
-            if "payment" in query or "fee" in query:
-                return data.get("epayments", "Payment information not available.")
-
-            # DEFAULT → PROCEDURE
-            return self.format_admission_procedure(data.get("procedure"))
         
         
-        # ----------------------------------------
-        # DEPARTMENTS
-        # ----------------------------------------
-        if intent == "departments":
-
-            departments = self.kb.get("departments", {})
-
-            dept_map = {
-                "cse": "computer_science_and_engineering",
-                "ai": "cse_ai_ml",
-                "artificial intelligence": "cse_ai_ml",
-                "cyber": "cse_cyber_security",
-                "data science": "cse_data_science",
-                "freshman": "freshman_engineering",
-                "school of computing": "school_of_computing"
-            }
-
-            selected_dept = None
-
-            for keyword, dept_key in dept_map.items():
-                if keyword in query:
-                    selected_dept = dept_key
-                    break
-
-            if not selected_dept:
-                return "Please specify department name."
-
-            dept_data = departments.get(selected_dept, {})
-
-            # HOD NAME REQUEST
-            if "hod" in query and ("who" in query or "name" in query):
-
-                hod_message = dept_data.get("hod-message", "")
-
-                lines = hod_message.split("\n")
-
-                for line in lines:
-                    line = line.strip()
-
-                    # detect name line
-                    if line.startswith("Dr.") or line.startswith("Mr.") or line.startswith("Mrs.") or line.startswith("Prof"):
-                        return f"HOD: {line}"
-
-                return "HOD information not available."
-
-
-            # HOD MESSAGE REQUEST
-            if "hod" in query:
-                return self.trim_response(dept_data.get("hod-message"))
-
-            if "vision" in query or "mission" in query:
-                return self.trim_response(dept_data.get("vision-mission"))
-
-            if "faculty" in query or "staff" in query:
-                return self.clean_response(dept_data.get("teaching-staff"))
-
-            if "achievement" in query:
-                return self.trim_response(dept_data.get("achivements"))
-
-            # FIX: If branch mentioned with research → treat as department
-            if intent == "research" and entities.get("branch"):
-                intent = "departments"
-                print("FINAL INTENT:", intent)
-
-            if "research" in query:
-                return self.trim_response(dept_data.get("research-and-consultancy"))
-
-            return self.trim_response(dept_data.get("about"))
+        
 
         # ----------------------------------------
         # PLACEMENTS
@@ -203,9 +161,7 @@ class Retriever:
                 )
 
             else:
-                return self.trim_response(
-                    placements_data.get("about")
-                )
+                return "📊 Placement Details:\n\n" + self.trim_response(placements_data.get("about"))
 
         # ----------------------------------------
         # RESEARCH & DEVELOPMENT
@@ -240,11 +196,12 @@ class Retriever:
             clubs_list = clubs_json.get("clubs_list", [])
             clubs_data = clubs_json.get("clubs_data", {})
 
-            # 1️⃣ If asking generally about clubs → return only names
-            if "about clubs" in query_lower or "list" in query_lower or "what clubs" in query_lower:
-                return "\n".join(clubs_list)
+            
 
-            # 2️⃣ If asking specific club
+            # -------------------------
+            # 1️⃣ SPECIFIC CLUBS FIRST
+            # -------------------------
+
             if "radio" in query_lower:
                 return self.format_club_response(clubs_data.get("radio_club"))
 
@@ -284,8 +241,13 @@ class Retriever:
             elif "women" in query_lower or "sheinspires" in query_lower:
                 return self.format_club_response(clubs_data.get("womens_club"))
 
+            # -------------------------
+            # 2️⃣ GENERAL CLUB LIST LAST
+            # -------------------------
+            elif "club" in query_lower or "clubs" in query_lower:
+                return "🎯 Student Clubs:\n\n" + "\n".join(clubs_list)
+
             return "Please specify which club you want information about."
-        
 
         # ----------------------------------------
         # ACADEMICS
@@ -308,7 +270,7 @@ class Retriever:
                 return self.clean_response(council_text)
 
             # Academic Calendar
-            if "calendar" in query:
+            if "calendar" in query or "academic" in query:
 
                 calendars = academics_data.get("academic_calendars", [])
 
@@ -358,7 +320,7 @@ class Retriever:
                             return (
                                 f"📅 {cal['title']}\n\n"
                                 f"Academic Year: {cal['academic_year']}\n\n"
-                                f"{cal['link']}"
+                                f"🔗 Calendar Link:\n{cal['link']}"
                             )
 
                 # fallback
@@ -370,10 +332,203 @@ class Retriever:
                     f"{cal['link']}"
                 )      
 
+
+       
         # ----------------------------------------
-        # DEFAULT
+        # DEPARTMENTS (FINAL FIXED)
         # ----------------------------------------
-        return "Sorry, I could not find relevant information."
+        if intent == "departments":
+
+            departments = self.kb.get("departments", {})
+
+            # -------------------------
+            # FIND DEPARTMENT
+            # -------------------------
+            selected_dept = None
+
+            if "cse" in query:
+                selected_dept = "computer_science_and_engineering"
+
+            elif "aiml" in query or "ai" in query:
+                selected_dept = "cse_ai_ml"
+
+            elif "cyber" in query or "security" in query:
+                selected_dept = "cse_cyber_security"
+
+            elif "data science" in query or "ds" in query or "data" in query:
+                selected_dept = "cse_data_science"
+
+            elif "freshman" in query:
+                selected_dept = "freshman_engineering"
+
+            elif "school of computing" in query:
+                selected_dept = "school_of_computing"
+
+            if not selected_dept:
+                return "Please specify department (e.g., CSE, AIML, Data Science)."
+
+            dept_data = departments.get(selected_dept)
+
+            if not dept_data:
+                return "Department information not available."
+
+            # -------------------------
+            # FLOW (ORDERED)
+            # -------------------------
+
+            # HOD
+            if "hod" in query:
+                hod = dept_data.get("hod-message")
+
+                if not hod:
+                    return "HOD information not available."
+
+                return "👨‍🏫 HOD:\n" + hod.split("\n")[0]
+
+            # ACHIEVEMENTS
+            elif "achievement" in query:
+
+                achievements = dept_data.get("achievements") or dept_data.get("achivements")
+
+                if not achievements:
+                    return "Achievements information not available."
+
+                text = str(achievements)
+
+                # -------------------------
+                # SPLIT SECTIONS
+                # -------------------------
+                if "Student Achievements" in text:
+                    faculty_part = text.split("Student Achievements")[0]
+                    student_part = text.split("Student Achievements")[1]
+                else:
+                    faculty_part = text
+                    student_part = ""
+
+                # -------------------------
+                # FORMAT OUTPUT
+                # -------------------------
+                response = "🏆 Department Achievements\n\n"
+
+                # Faculty
+                response += "👨‍🏫 Faculty Achievements:\n"
+                faculty_lines = [l.strip() for l in faculty_part.split("\n") if len(l.strip()) > 10]
+
+                for line in faculty_lines[:5]:
+                    response += f"• {line}\n"
+
+                # Students
+                if student_part:
+                    response += "\n🎓 Student Achievements:\n"
+                    student_lines = [l.strip() for l in student_part.split("\n") if len(l.strip()) > 10]
+
+                    for line in student_lines[:5]:
+                        response += f"• {line}\n"
+
+                return response
+
+            # VISION
+            elif "vision" in query or "mission" in query:
+                vision = dept_data.get("vision-mission")
+
+                if not vision:
+                    return "Vision not available."
+
+                return self.trim_response(vision)
+
+            # FACULTY
+            elif "faculty" in query or "staff" in query:
+
+                faculty = (
+                    dept_data.get("teaching-staff") or
+                    dept_data.get("teaching staff") or
+                    dept_data.get("faculty") or
+                    dept_data.get("staff")
+                )
+
+                if not faculty:
+                    return "Faculty information not available."
+
+                # -------------------------
+                # SAFE HANDLING (FIX)
+                # -------------------------
+                if isinstance(faculty, list):
+                    lines = faculty
+                else:
+                    text = str(faculty)
+                    lines = text.split("\n")
+
+                clean_lines = []
+
+                for line in lines:
+                    line = str(line).strip()
+
+                    if not line:
+                        continue
+
+                    # ❌ REMOVE JUNK LINES
+                    unwanted_keywords = [
+                        "academics", "admissions", "placements", "transport",
+                        "gallery", "ncc", "nptel", "swayam", "naac", "nirf",
+                        "infrastructure", "privacy", "policy", "today", "yesterday",
+                        "sphoorthy", "sp hn", "local chapter"
+                    ]
+
+                    if any(word in line.lower() for word in unwanted_keywords):
+                        continue
+
+                    # ❌ REMOVE department titles
+                    if "engineering" in line.lower():
+                        continue
+
+                    # ❌ REMOVE very long weird lines
+                    if len(line) > 80:
+                        continue
+
+                    # ✅ KEEP VALID NAMES
+                    clean_lines.append("• " + line)
+                return "👨‍🏫 Teaching Staff:\n\n" + "\n".join(clean_lines)
+
+            # RESEARCH
+            elif "research" in query:
+
+                research = dept_data.get("research-and-consultancy")
+
+                if not research:
+                    return "Research information not available."
+
+                text = str(research)
+
+                # REMOVE TABLE HEADERS
+                lines = text.split("\n")
+                clean_lines = []
+
+                for line in lines:
+                    line = line.strip()
+
+                    if not line:
+                        continue
+
+                    if "Academic Year" in line:
+                        continue
+
+                    clean_lines.append(line)
+
+                response = "🔬 Research & Consultancy:\n\n"
+
+                for line in clean_lines[:8]:
+                    response += f"• {line}\n"
+
+                return response
+
+            # DEFAULT → ABOUT
+            else:
+                about = dept_data.get("about")
+
+                if not about:
+                    return "Department information not available."
+
+                return self.trim_response(about)
 
     def clean_response(self, text):
 
@@ -430,7 +585,7 @@ class Retriever:
             line = line.strip()
 
             # Ignore short headers like "About Department"
-            if len(line) < 40:
+            if len(line) < 10:
                 continue
 
             # Ignore navigation-like junk
@@ -619,29 +774,25 @@ class Retriever:
 
 
 
-    def format_club_response(self, text):
+    def format_club_response(self, club_data):
 
-        if not text:
-            return "Information not available."
+        if not club_data:
+            return "Club information not available."
 
-        text = self.clean_response(text)
-        lines = text.split("\n")
+        text = str(club_data)
 
-        cleaned = []
-
-        junk_keywords = [
-            "Student Clubs",
-            "Accredited by",
-            "+91",
-            "NCC",
-            "AICTE Idea Lab",
-            "Home -",
-            "Download Brochure",
-            "Full Name",
-            "Submit",
-            "Enquiry",
-            "Alumni"
+        # -------------------------
+        # REMOVE JUNK LINES
+        # -------------------------
+        unwanted = [
+            "Student Clubs", "NAAC", "SHHN", "Google Maps",
+            "Alumni", "Enquiry", "Facebook", "Instagram",
+            "YouTube", "Linkedin", "Gallery", "Download Brochure",
+            "Submit", "Home", "Location"
         ]
+
+        lines = text.split("\n")
+        clean_lines = []
 
         for line in lines:
             line = line.strip()
@@ -649,23 +800,65 @@ class Retriever:
             if not line:
                 continue
 
-            # Remove junk header lines
-            if any(junk in line for junk in junk_keywords):
+            if any(word.lower() in line.lower() for word in unwanted):
                 continue
 
-            # Remove extremely short meaningless lines
-            if len(line) < 3:
-                continue
+            clean_lines.append(line)
 
-            cleaned.append(line)
+        text = "\n".join(clean_lines)
 
-        # Remove duplicate consecutive lines
-        final_output = []
-        prev = ""
-        for line in cleaned:
-            if line != prev:
-                final_output.append(line)
-            prev = line
+        # -------------------------
+        # EXTRACT SECTIONS PROPERLY
+        # -------------------------
 
-        # Limit output to first 60 meaningful lines
-        return "\n".join(final_output[:60])
+        def extract_between(start, end):
+            if start in text:
+                part = text.split(start)[1]
+                if end in part:
+                    part = part.split(end)[0]
+                return part.strip()
+            return ""
+
+        about = extract_between("About", "Vision")
+        vision = extract_between("Vision", "Mission")
+        mission = extract_between("Mission", "Objectives")
+
+        # -------------------------
+        # FORMAT OUTPUT (BALANCED)
+        # -------------------------
+
+        response = "🎯 Club Details\n\n"
+
+        # About (clean & medium length)
+        if about:
+            about_lines = about.split("\n")
+            clean_about = []
+
+            for line in about_lines:
+                if len(line) > 30:
+                    clean_about.append(line)
+
+            response += "📌 About:\n"
+            for line in clean_about[:2]:   # only 2 good lines
+                response += f"• {line}\n"
+            response += "\n"
+
+        # Vision
+        if vision:
+            response += "📌 Vision:\n"
+            response += f"• {vision[:200]}...\n\n"
+
+        # Mission
+        if mission:
+            response += "📌 Mission:\n"
+            mission_lines = mission.split("\n")
+
+            count = 0
+            for line in mission_lines:
+                if line.strip():
+                    response += f"• {line.strip()}\n"
+                    count += 1
+                if count == 3:
+                    break
+
+        return response
